@@ -1,4 +1,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- USB Serial Port Permissions -->
+    <uses-feature android:name="android.hardware.usb.host" />
+    <uses-permission android:name="android.hardware.usb.host" />
+    
     <application
         android:label="project"
         android:name="${applicationName}"

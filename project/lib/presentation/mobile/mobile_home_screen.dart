@@ -34,10 +34,9 @@ class MobileHomeScreen extends StatelessWidget {
                 ),
                 child: Container(
                   width: double.infinity,
-                  alignment: Alignment.center,
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 32,
-                    vertical: 16,
+                    horizontal: 24,
+                    vertical: 12,
                   ),
                   decoration: BoxDecoration(
                     color: const Color(0xFF050510).withOpacity(0.8),
@@ -59,19 +58,42 @@ class MobileHomeScreen extends StatelessWidget {
                       ),
                     ],
                   ),
-                  child: Text(
-                    provider.isConnected
-                        ? 'Connected: ${provider.baudRate} 8N1'
-                        : 'Disconnected',
-                    style: const TextStyle(
-                      color: Color(0xFF00E5FF),
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 1.2,
-                      shadows: [
-                        Shadow(color: Color(0xFF00E5FF), blurRadius: 10),
-                      ],
-                    ),
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      // Centered text
+                      Center(
+                        child: Text(
+                          provider.isConnected
+                              ? 'Connected: ${provider.baudRate} 8N1'
+                              : 'Disconnected',
+                          style: const TextStyle(
+                            color: Color(0xFF00E5FF),
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 1.2,
+                            shadows: [
+                              Shadow(color: Color(0xFF00E5FF), blurRadius: 10),
+                            ],
+                          ),
+                        ),
+                      ),
+                      // Settings icon positioned on the right
+                      Positioned(
+                        right: 0,
+                        child: IconButton(
+                          icon: const Icon(
+                            Icons.settings,
+                            color: Color(0xFF00E5FF),
+                            size: 20,
+                          ),
+                          onPressed: () =>
+                              _showSettingsSheet(context, provider),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ).animate().fadeIn().slideY(begin: -0.5, end: 0),
@@ -163,6 +185,121 @@ class MobileHomeScreen extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+
+  static void _showSettingsSheet(
+    BuildContext context,
+    SerialProvider provider,
+  ) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFF101025), Color(0xFF050510)],
+          ),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Serial Port Settings',
+              style: TextStyle(
+                color: Color(0xFF00E5FF),
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 24),
+            // Port selection
+            _SettingRow(
+              label: 'Port',
+              child: DropdownButton<String>(
+                value: provider.selectedPort.isEmpty
+                    ? null
+                    : provider.selectedPort,
+                hint: const Text(
+                  'Select Port',
+                  style: TextStyle(color: Colors.white60),
+                ),
+                dropdownColor: const Color(0xFF12122A),
+                style: const TextStyle(color: Colors.white),
+                items: provider.availablePorts
+                    .map(
+                      (port) =>
+                          DropdownMenuItem(value: port, child: Text(port)),
+                    )
+                    .toList(),
+                onChanged: provider.isConnected
+                    ? null
+                    : (value) {
+                        if (value != null) provider.setPort(value);
+                      },
+              ),
+            ),
+            const SizedBox(height: 16),
+            //Baud Rate
+            _SettingRow(
+              label: 'Baud Rate',
+              child: DropdownButton<int>(
+                value: provider.baudRate,
+                dropdownColor: const Color(0xFF12122A),
+                style: const TextStyle(color: Colors.white),
+                items: [9600, 19200, 38400, 57600, 115200]
+                    .map(
+                      (rate) =>
+                          DropdownMenuItem(value: rate, child: Text('$rate')),
+                    )
+                    .toList(),
+                onChanged: provider.isConnected
+                    ? null
+                    : (value) {
+                        if (value != null) provider.setBaudRate(value);
+                      },
+              ),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: () async {
+                await provider.refreshPorts();
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF00E5FF),
+                foregroundColor: Colors.black,
+              ),
+              child: const Text('Refresh Ports'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SettingRow extends StatelessWidget {
+  final String label;
+  final Widget child;
+
+  const _SettingRow({required this.label, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(color: Colors.white70, fontSize: 16),
+        ),
+        child,
+      ],
     );
   }
 }

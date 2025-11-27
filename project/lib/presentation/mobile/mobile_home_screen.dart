@@ -5,13 +5,25 @@ import '../../providers/serial_provider.dart';
 
 import '../widgets/glass_container.dart';
 
-class MobileHomeScreen extends StatelessWidget {
+class MobileHomeScreen extends StatefulWidget {
   const MobileHomeScreen({super.key});
+
+  @override
+  State<MobileHomeScreen> createState() => _MobileHomeScreenState();
+}
+
+class _MobileHomeScreenState extends State<MobileHomeScreen> {
+  final TextEditingController _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<SerialProvider>();
-    final TextEditingController _controller = TextEditingController();
 
     return Scaffold(
       extendBodyBehindAppBar: true,

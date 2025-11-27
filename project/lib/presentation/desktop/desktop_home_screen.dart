@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -15,22 +16,38 @@ class DesktopHomeScreen extends StatefulWidget {
 class _DesktopHomeScreenState extends State<DesktopHomeScreen> {
   final TextEditingController _controller = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  bool _autoScroll = true;
+  Timer? _resumeScrollTimer;
 
   @override
   void dispose() {
     _controller.dispose();
     _scrollController.dispose();
+    _resumeScrollTimer?.cancel();
     super.dispose();
   }
 
   void _scrollToBottom() {
-    if (_scrollController.hasClients) {
+    if (_autoScroll && _scrollController.hasClients) {
       _scrollController.animateTo(
         _scrollController.position.maxScrollExtent,
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeOut,
       );
     }
+  }
+
+  void _pauseAutoScroll() {
+    setState(() {
+      _autoScroll = false;
+    });
+    _resumeScrollTimer?.cancel();
+    _resumeScrollTimer = Timer(const Duration(seconds: 5), () {
+      setState(() {
+        _autoScroll = true;
+      });
+      _scrollToBottom();
+    });
   }
 
   @override
@@ -156,19 +173,23 @@ class _DesktopHomeScreenState extends State<DesktopHomeScreen> {
                           ),
                           const Divider(color: Colors.white10),
                           Expanded(
-                            child: ListView.builder(
-                              controller: _scrollController,
-                              itemCount: provider.logs.length,
-                              itemBuilder: (context, index) {
-                                return Text(
-                                  provider.logs[index],
-                                  style: const TextStyle(
-                                    fontFamily: 'Courier New',
-                                    color: Color(0xFF00E5FF),
-                                    fontSize: 14,
-                                  ),
-                                );
-                              },
+                            child: GestureDetector(
+                              onLongPressStart: (_) => _pauseAutoScroll(),
+                              onPanStart: (_) => _pauseAutoScroll(),
+                              child: ListView.builder(
+                                controller: _scrollController,
+                                itemCount: provider.logs.length,
+                                itemBuilder: (context, index) {
+                                  return Text(
+                                    provider.logs[index],
+                                    style: const TextStyle(
+                                      fontFamily: 'Courier New',
+                                      color: Color(0xFF00E5FF),
+                                      fontSize: 14,
+                                    ),
+                                  );
+                                },
+                              ),
                             ),
                           ),
                         ],

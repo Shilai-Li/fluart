@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../../providers/serial_provider.dart';
-
 import '../widgets/glass_container.dart';
 
 class MobileHomeScreen extends StatefulWidget {
@@ -14,6 +13,7 @@ class MobileHomeScreen extends StatefulWidget {
 
 class _MobileHomeScreenState extends State<MobileHomeScreen> {
   final TextEditingController _controller = TextEditingController();
+  bool _settingsExpanded = false;
 
   @override
   void dispose() {
@@ -99,8 +99,13 @@ class _MobileHomeScreenState extends State<MobileHomeScreen> {
                             color: Color(0xFF00E5FF),
                             size: 20,
                           ),
-                          onPressed: () =>
-                              _showSettingsSheet(context, provider),
+                          onPressed: provider.isConnected
+                              ? null
+                              : () {
+                                  setState(() {
+                                    _settingsExpanded = !_settingsExpanded;
+                                  });
+                                },
                           padding: EdgeInsets.zero,
                           constraints: const BoxConstraints(),
                         ),
@@ -109,6 +114,140 @@ class _MobileHomeScreenState extends State<MobileHomeScreen> {
                   ),
                 ),
               ).animate().fadeIn().slideY(begin: -0.5, end: 0),
+
+              // Expandable Settings Panel
+              AnimatedSize(
+                duration: const Duration(milliseconds: 400),
+                curve: Curves.easeInOut,
+                child: _settingsExpanded
+                    ? Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                        child: Container(
+                          margin: const EdgeInsets.only(bottom: 16),
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF050510).withOpacity(0.95),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: const Color(0xFF00E5FF).withOpacity(0.5),
+                              width: 1.5,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFF00E5FF).withOpacity(0.3),
+                                blurRadius: 20,
+                                spreadRadius: 2,
+                              ),
+                            ],
+                          ),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  const Text(
+                                    'Serial Port Settings',
+                                    style: TextStyle(
+                                      color: Color(0xFF00E5FF),
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(
+                                      Icons.close,
+                                      color: Color(0xFF00E5FF),
+                                      size: 20,
+                                    ),
+                                    onPressed: () {
+                                      setState(() {
+                                        _settingsExpanded = false;
+                                      });
+                                    },
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 16),
+                              _SettingRow(
+                                label: 'Port',
+                                child: DropdownButton<String>(
+                                  value: provider.selectedPort.isEmpty
+                                      ? null
+                                      : provider.selectedPort,
+                                  hint: const Text(
+                                    'Select Port',
+                                    style: TextStyle(color: Colors.white60),
+                                  ),
+                                  dropdownColor: const Color(0xFF12122A),
+                                  style: const TextStyle(color: Colors.white),
+                                  items: provider.availablePorts
+                                      .map(
+                                        (port) => DropdownMenuItem(
+                                          value: port,
+                                          child: Text(port),
+                                        ),
+                                      )
+                                      .toList(),
+                                  onChanged: provider.isConnected
+                                      ? null
+                                      : (value) {
+                                          if (value != null) {
+                                            provider.setPort(value);
+                                          }
+                                        },
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              _SettingRow(
+                                label: 'Baud Rate',
+                                child: DropdownButton<int>(
+                                  value: provider.baudRate,
+                                  dropdownColor: const Color(0xFF12122A),
+                                  style: const TextStyle(color: Colors.white),
+                                  items: [9600, 19200, 38400, 57600, 115200]
+                                      .map(
+                                        (rate) => DropdownMenuItem(
+                                          value: rate,
+                                          child: Text('$rate'),
+                                        ),
+                                      )
+                                      .toList(),
+                                  onChanged: provider.isConnected
+                                      ? null
+                                      : (value) {
+                                          if (value != null) {
+                                            provider.setBaudRate(value);
+                                          }
+                                        },
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              SizedBox(
+                                width: double.infinity,
+                                child: ElevatedButton(
+                                  onPressed: () async {
+                                    await provider.refreshPorts();
+                                  },
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFF00E5FF),
+                                    foregroundColor: Colors.black,
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 12,
+                                    ),
+                                  ),
+                                  child: const Text('Refresh Ports'),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
+                    : const SizedBox.shrink(),
+              ),
 
               // Log Area
               Expanded(
@@ -195,100 +334,6 @@ class _MobileHomeScreenState extends State<MobileHomeScreen> {
               ).animate().fadeIn().slideY(begin: 0.5, end: 0),
             ],
           ),
-        ),
-      ),
-    );
-  }
-
-  static void _showSettingsSheet(
-    BuildContext context,
-    SerialProvider provider,
-  ) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFF101025), Color(0xFF050510)],
-          ),
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Serial Port Settings',
-              style: TextStyle(
-                color: Color(0xFF00E5FF),
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 24),
-            // Port selection
-            _SettingRow(
-              label: 'Port',
-              child: DropdownButton<String>(
-                value: provider.selectedPort.isEmpty
-                    ? null
-                    : provider.selectedPort,
-                hint: const Text(
-                  'Select Port',
-                  style: TextStyle(color: Colors.white60),
-                ),
-                dropdownColor: const Color(0xFF12122A),
-                style: const TextStyle(color: Colors.white),
-                items: provider.availablePorts
-                    .map(
-                      (port) =>
-                          DropdownMenuItem(value: port, child: Text(port)),
-                    )
-                    .toList(),
-                onChanged: provider.isConnected
-                    ? null
-                    : (value) {
-                        if (value != null) provider.setPort(value);
-                      },
-              ),
-            ),
-            const SizedBox(height: 16),
-            //Baud Rate
-            _SettingRow(
-              label: 'Baud Rate',
-              child: DropdownButton<int>(
-                value: provider.baudRate,
-                dropdownColor: const Color(0xFF12122A),
-                style: const TextStyle(color: Colors.white),
-                items: [9600, 19200, 38400, 57600, 115200]
-                    .map(
-                      (rate) =>
-                          DropdownMenuItem(value: rate, child: Text('$rate')),
-                    )
-                    .toList(),
-                onChanged: provider.isConnected
-                    ? null
-                    : (value) {
-                        if (value != null) provider.setBaudRate(value);
-                      },
-              ),
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: () async {
-                await provider.refreshPorts();
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF00E5FF),
-                foregroundColor: Colors.black,
-              ),
-              child: const Text('Refresh Ports'),
-            ),
-          ],
         ),
       ),
     );

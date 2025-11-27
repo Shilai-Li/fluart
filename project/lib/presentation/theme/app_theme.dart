@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 class AppTheme {
   static const Color _primaryColor = Color(0xFF00E5FF); // Cyan Neon
@@ -20,16 +19,13 @@ class AppTheme {
         primary: _primaryColor,
         secondary: _secondaryColor,
         surface: _surfaceColor,
-        background: _backgroundColor,
         error: _errorColor,
-        onPrimary: Colors.black,
-        onSecondary: Colors.white,
-        onSurface: Colors.white,
-        onBackground: Colors.white,
       ),
-      textTheme: GoogleFonts.outfitTextTheme(
-        ThemeData.dark().textTheme,
-      ).apply(bodyColor: Colors.white, displayColor: Colors.white),
+      textTheme: const TextTheme(
+        bodyMedium: TextStyle(color: Colors.white),
+        bodyLarge: TextStyle(color: Colors.white),
+        titleLarge: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+      ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: _surfaceColor.withOpacity(0.5),

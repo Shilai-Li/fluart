@@ -5,13 +5,42 @@ import '../../providers/serial_provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/glass_container.dart';
 
-class DesktopHomeScreen extends StatelessWidget {
+class DesktopHomeScreen extends StatefulWidget {
   const DesktopHomeScreen({super.key});
+
+  @override
+  State<DesktopHomeScreen> createState() => _DesktopHomeScreenState();
+}
+
+class _DesktopHomeScreenState extends State<DesktopHomeScreen> {
+  final TextEditingController _controller = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _scrollToBottom() {
+    if (_scrollController.hasClients) {
+      _scrollController.animateTo(
+        _scrollController.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<SerialProvider>();
-    final TextEditingController _controller = TextEditingController();
+
+    // Auto-scroll when logs update
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _scrollToBottom();
+    });
 
     return Scaffold(
       body: Container(
@@ -128,6 +157,7 @@ class DesktopHomeScreen extends StatelessWidget {
                           const Divider(color: Colors.white10),
                           Expanded(
                             child: ListView.builder(
+                              controller: _scrollController,
                               itemCount: provider.logs.length,
                               itemBuilder: (context, index) {
                                 return Text(
@@ -147,8 +177,8 @@ class DesktopHomeScreen extends StatelessWidget {
                   ),
 
                   // Command Area
-                  Expanded(
-                    flex: 1,
+                  SizedBox(
+                    height: 180,
                     child: Row(
                       children: [
                         Expanded(
@@ -181,6 +211,12 @@ class DesktopHomeScreen extends StatelessWidget {
                                               'Enter hex or ascii command...',
                                           border: InputBorder.none,
                                         ),
+                                        onSubmitted: (value) {
+                                          if (value.isNotEmpty) {
+                                            provider.send(value);
+                                            _controller.clear();
+                                          }
+                                        },
                                       ),
                                     ),
                                     IconButton(
@@ -201,7 +237,7 @@ class DesktopHomeScreen extends StatelessWidget {
                             ),
                           ),
                         ),
-                        // Inspector / Quick Actions
+                        // Inspector / Stats
                         Expanded(
                           flex: 1,
                           child: GlassContainer(
@@ -212,18 +248,57 @@ class DesktopHomeScreen extends StatelessWidget {
                             opacity: 0.08,
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
                               children: [
-                                const Text(
-                                  'INSPECTOR',
-                                  style: TextStyle(
-                                    color: Colors.white54,
-                                    fontSize: 12,
-                                  ),
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    const Text(
+                                      'INSPECTOR',
+                                      style: TextStyle(
+                                        color: Colors.white54,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                    Container(
+                                      width: 8,
+                                      height: 8,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: provider.isConnected
+                                            ? const Color(0xFF00FF88)
+                                            : Colors.white30,
+                                        boxShadow: provider.isConnected
+                                            ? [
+                                                const BoxShadow(
+                                                  color: Color(0xFF00FF88),
+                                                  blurRadius: 8,
+                                                  spreadRadius: 2,
+                                                ),
+                                              ]
+                                            : null,
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                                const SizedBox(height: 10),
-                                _buildInspectorRow('RX Bytes', '1024'),
-                                _buildInspectorRow('TX Bytes', '512'),
-                                _buildInspectorRow('Errors', '0'),
+                                const SizedBox(height: 8),
+                                _buildInspectorRow(
+                                  'RX',
+                                  provider.rxBytes.toString(),
+                                ),
+                                _buildInspectorRow(
+                                  'TX',
+                                  provider.txBytes.toString(),
+                                ),
+                                _buildInspectorRow(
+                                  'Errors',
+                                  provider.errorCount.toString(),
+                                ),
+                                _buildInspectorRow(
+                                  'Time',
+                                  provider.connectionDuration,
+                                ),
                               ],
                             ),
                           ),
@@ -280,16 +355,20 @@ class DesktopHomeScreen extends StatelessWidget {
 
   Widget _buildInspectorRow(String label, String value) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4.0),
+      padding: const EdgeInsets.symmetric(vertical: 3.0),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: const TextStyle(color: Colors.white70)),
+          Text(
+            label,
+            style: const TextStyle(color: Colors.white70, fontSize: 11),
+          ),
           Text(
             value,
             style: const TextStyle(
               color: Color(0xFF00E5FF),
               fontFamily: 'Courier New',
+              fontSize: 11,
             ),
           ),
         ],

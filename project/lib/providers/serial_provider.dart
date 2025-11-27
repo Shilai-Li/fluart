@@ -18,6 +18,13 @@ class SerialProvider extends ChangeNotifier {
   int _stopBits = 1;
   int _parity = 0; // 0 = none, 1 = odd, 2 = even
 
+  // Statistics
+  int _rxBytes = 0;
+  int _txBytes = 0;
+  int _errorCount = 0;
+  DateTime? _connectionStartTime;
+  Timer? _connectionTimer;
+
   StreamSubscription? _dataSubscription;
   StreamSubscription? _connectionSubscription;
   StreamSubscription? _parsedDataSubscription;
@@ -32,12 +39,21 @@ class SerialProvider extends ChangeNotifier {
       connected,
     ) {
       _isConnected = connected;
+      if (connected) {
+        _connectionStartTime = DateTime.now();
+        _startConnectionTimer();
+      } else {
+        _connectionStartTime = null;
+        _connectionTimer?.cancel();
+      }
       notifyListeners();
     });
 
     // Listen to raw data
     _dataSubscription = _serialService.dataStream.listen((data) {
+      _rxBytes += data.length;
       _parser.parse(data);
+      notifyListeners();
     });
 
     // Listen to parsed data
@@ -57,6 +73,19 @@ class SerialProvider extends ChangeNotifier {
   int get dataBits => _dataBits;
   int get stopBits => _stopBits;
   int get parity => _parity;
+
+  // Statistics getters
+  int get rxBytes => _rxBytes;
+  int get txBytes => _txBytes;
+  int get errorCount => _errorCount;
+  String get connectionDuration {
+    if (_connectionStartTime == null) return '00:00:00';
+    final duration = DateTime.now().difference(_connectionStartTime!);
+    final hours = duration.inHours.toString().padLeft(2, '0');
+    final minutes = (duration.inMinutes % 60).toString().padLeft(2, '0');
+    final seconds = (duration.inSeconds % 60).toString().padLeft(2, '0');
+    return '$hours:$minutes:$seconds';
+  }
 
   Future<void> refreshPorts() async {
     _availablePorts = await _serialService.getAvailablePorts();
@@ -84,9 +113,25 @@ class SerialProvider extends ChangeNotifier {
 
     if (success) {
       addLog('Connected successfully');
+      _resetStats();
     } else {
       addLog('Failed to connect');
+      _errorCount++;
+      notifyListeners();
     }
+  }
+
+  void _resetStats() {
+    _rxBytes = 0;
+    _txBytes = 0;
+    _errorCount = 0;
+  }
+
+  void _startConnectionTimer() {
+    _connectionTimer?.cancel();
+    _connectionTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      notifyListeners(); // Update UI every second for duration
+    });
   }
 
   Future<void> disconnect() async {
@@ -105,9 +150,13 @@ class SerialProvider extends ChangeNotifier {
       // Add newline for text mode
       final data = utf8.encode('$message\n');
       await _serialService.send(data);
+      _txBytes += data.length;
       addLog('TX: $message');
+      notifyListeners();
     } catch (e) {
       addLog('Error sending: $e');
+      _errorCount++;
+      notifyListeners();
     }
   }
 
@@ -169,6 +218,7 @@ class SerialProvider extends ChangeNotifier {
     _dataSubscription?.cancel();
     _connectionSubscription?.cancel();
     _parsedDataSubscription?.cancel();
+    _connectionTimer?.cancel();
     _serialService.dispose();
     _parser.dispose();
     super.dispose();

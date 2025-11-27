@@ -13,17 +13,34 @@ class MobileHomeScreen extends StatefulWidget {
 
 class _MobileHomeScreenState extends State<MobileHomeScreen> {
   final TextEditingController _controller = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
   bool _settingsExpanded = false;
 
   @override
   void dispose() {
     _controller.dispose();
+    _scrollController.dispose();
     super.dispose();
+  }
+
+  void _scrollToBottom() {
+    if (_scrollController.hasClients) {
+      _scrollController.animateTo(
+        _scrollController.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<SerialProvider>();
+
+    // Auto-scroll when logs update
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _scrollToBottom();
+    });
 
     return Scaffold(
       extendBodyBehindAppBar: true,
@@ -256,6 +273,7 @@ class _MobileHomeScreenState extends State<MobileHomeScreen> {
                   child: GlassContainer(
                     opacity: 0.05,
                     child: ListView.builder(
+                      controller: _scrollController,
                       itemCount: provider.logs.length,
                       itemBuilder: (context, index) {
                         return Padding(

@@ -1,13 +1,96 @@
 import 'dart:async';
-import 'dart:html' as html;
-import 'dart:js_util' as js_util;
+import 'dart:js_interop';
 import 'dart:typed_data';
 import 'serial_service.dart';
 
+// --- Web Serial API Interop Definitions ---
+
+@JS('navigator.serial')
+external Serial? get _serial;
+
+@JS()
+extension type Serial._(JSObject _) implements JSObject {
+  external JSPromise<JSArray<SerialPort>> getPorts();
+  external JSPromise<SerialPort> requestPort([
+    SerialPortRequestOptions? options,
+  ]);
+}
+
+@JS()
+@anonymous
+extension type SerialPortRequestOptions._(JSObject _) implements JSObject {
+  external factory SerialPortRequestOptions({
+    JSArray<SerialPortFilter>? filters,
+  });
+}
+
+@JS()
+@anonymous
+extension type SerialPortFilter._(JSObject _) implements JSObject {
+  external factory SerialPortFilter({int? usbVendorId, int? usbProductId});
+}
+
+@JS()
+extension type SerialPort._(JSObject _) implements JSObject {
+  external JSPromise<JSAny?> open(SerialOptions options);
+  external JSPromise<JSAny?> close();
+  external ReadableStream get readable;
+  external WritableStream get writable;
+  // We can use a simple way to get info or just use the object identity for the name
+}
+
+@JS()
+@anonymous
+extension type SerialOptions._(JSObject _) implements JSObject {
+  external factory SerialOptions({
+    required int baudRate,
+    int? dataBits,
+    int? stopBits,
+    String? parity,
+    int? bufferSize,
+    String? flowControl,
+  });
+}
+
+@JS()
+extension type ReadableStream._(JSObject _) implements JSObject {
+  external ReadableStreamDefaultReader getReader();
+  external bool get locked;
+}
+
+@JS()
+extension type ReadableStreamDefaultReader._(JSObject _) implements JSObject {
+  external JSPromise<ReadableStreamReadResult> read();
+  external void releaseLock();
+  external JSPromise<JSAny?> cancel([JSAny? reason]);
+}
+
+@JS()
+extension type ReadableStreamReadResult._(JSObject _) implements JSObject {
+  external JSAny? get value;
+  external bool get done;
+}
+
+@JS()
+extension type WritableStream._(JSObject _) implements JSObject {
+  external WritableStreamDefaultWriter getWriter();
+  external bool get locked;
+}
+
+@JS()
+extension type WritableStreamDefaultWriter._(JSObject _) implements JSObject {
+  external JSPromise<JSAny?> write(JSAny? chunk);
+  external void releaseLock();
+  external JSPromise<JSAny?> close();
+  external JSPromise<JSAny?> abort([JSAny? reason]);
+}
+
+// --- Implementation ---
+
 class SerialServiceWeb implements SerialService {
-  dynamic _port;
-  dynamic _reader;
-  dynamic _writer;
+  SerialPort? _port;
+  ReadableStreamDefaultReader? _reader;
+  WritableStreamDefaultWriter? _writer;
 
   final StreamController<List<int>> _dataController =
       StreamController<List<int>>.broadcast();
@@ -16,8 +99,10 @@ class SerialServiceWeb implements SerialService {
 
   bool _isConnected = false;
 
-  // Map to store port objects (dynamic JS objects)
-  final Map<String, dynamic> _knownPorts = {};
+  // Map to store port objects.
+  // In the new interop, we can keep the SerialPort objects directly.
+  // We'll assign them arbitrary names for the UI.
+  final List<SerialPort> _knownPorts = [];
 
   @override
   bool get isConnected => _isConnected;
@@ -30,29 +115,21 @@ class SerialServiceWeb implements SerialService {
 
   @override
   Future<List<String>> getAvailablePorts() async {
-    final nav = html.window.navigator;
-    if (!js_util.hasProperty(nav, 'serial')) {
+    final serial = _serial;
+    if (serial == null) {
       return ['Web Serial API not supported'];
     }
 
     try {
-      final serial = js_util.getProperty(nav, 'serial');
-      final portsPromise = js_util.callMethod(serial, 'getPorts', []);
-      final ports = await js_util.promiseToFuture(portsPromise);
+      final portsJS = await serial.getPorts().toDart;
+      final ports = portsJS.toDart;
 
       _knownPorts.clear();
+      _knownPorts.addAll(ports);
+
       final List<String> portNames = [];
-
-      // ports is a JS Array. We can iterate it using List.from if it's iterable,
-      // or standard loop if it's a JS array.
-      // Usually List.from(ports) works for JS arrays in Dart web.
-      final portsList = List.from(ports as List);
-
-      for (var i = 0; i < portsList.length; i++) {
-        final port = portsList[i];
-        final name = "WebPort-$i";
-        _knownPorts[name] = port;
-        portNames.add(name);
+      for (var i = 0; i < _knownPorts.length; i++) {
+        portNames.add("WebPort-$i");
       }
 
       if (portNames.isEmpty) {
@@ -61,6 +138,7 @@ class SerialServiceWeb implements SerialService {
 
       return portNames;
     } catch (e) {
+      // ignore: avoid_print
       print('Error getting ports: $e');
       return ['Select Port...'];
     }
@@ -79,20 +157,28 @@ class SerialServiceWeb implements SerialService {
         await disconnect();
       }
 
-      dynamic port = _knownPorts[portName];
+      SerialPort? port;
 
+      // Check if it's a known port
+      if (portName.startsWith("WebPort-")) {
+        final indexStr = portName.substring("WebPort-".length);
+        final index = int.tryParse(indexStr);
+        if (index != null && index >= 0 && index < _knownPorts.length) {
+          port = _knownPorts[index];
+        }
+      }
+
+      // If not found or user wants to select a new one (implied by "Select Port..." logic usually,
+      // but here we handle the case where we might need to request permission)
       if (port == null) {
         try {
-          final nav = html.window.navigator;
-          final serial = js_util.getProperty(nav, 'serial');
-          final portPromise = js_util.callMethod(serial, 'requestPort', []);
-          port = await js_util.promiseToFuture(portPromise);
-
-          if (port != null) {
-            final name = "WebPort-${_knownPorts.length}";
-            _knownPorts[name] = port;
+          final serial = _serial;
+          if (serial != null) {
+            port = await serial.requestPort().toDart;
+            _knownPorts.add(port);
           }
         } catch (e) {
+          // ignore: avoid_print
           print('User cancelled or error requesting port: $e');
           return false;
         }
@@ -100,15 +186,14 @@ class SerialServiceWeb implements SerialService {
 
       if (port == null) return false;
 
-      // Create options object
-      final options = js_util.newObject();
-      js_util.setProperty(options, 'baudRate', baudRate);
-      js_util.setProperty(options, 'dataBits', dataBits);
-      js_util.setProperty(options, 'stopBits', stopBits);
-      js_util.setProperty(options, 'parity', _mapParity(parity));
+      final options = SerialOptions(
+        baudRate: baudRate,
+        dataBits: dataBits,
+        stopBits: stopBits,
+        parity: _mapParity(parity),
+      );
 
-      final openPromise = js_util.callMethod(port, 'open', [options]);
-      await js_util.promiseToFuture(openPromise);
+      await port.open(options).toDart;
 
       _port = port;
       _startReading();
@@ -117,6 +202,7 @@ class SerialServiceWeb implements SerialService {
       _connectionController.add(true);
       return true;
     } catch (e) {
+      // ignore: avoid_print
       print('Error connecting: $e');
       _isConnected = false;
       _connectionController.add(false);
@@ -139,47 +225,37 @@ class SerialServiceWeb implements SerialService {
     if (_port == null) return;
 
     try {
-      final readable = js_util.getProperty(_port, 'readable');
-      if (readable == null) return;
+      // Check if readable is available
+      // Note: In strict interop, we might need to check if properties exist,
+      // but the extension type assumes it matches the IDL.
+      final readable = _port!.readable;
+      // if (readable == null) return; // ReadableStream is usually always there if open succeeded
 
-      _reader = js_util.callMethod(readable, 'getReader', []);
+      _reader = readable.getReader();
 
       while (true) {
-        final readPromise = js_util.callMethod(_reader, 'read', []);
-        final result = await js_util.promiseToFuture(readPromise);
+        final result = await _reader!.read().toDart;
+        final done = result.done;
+        final value = result.value;
 
-        final done = js_util.getProperty(result, 'done');
-        final value = js_util.getProperty(result, 'value');
-
-        if (done == true) {
+        if (done) {
           break;
         }
 
         if (value != null) {
-          // value is a Uint8List (or JS Uint8Array)
-          // We might need to cast or convert
-          if (value is Uint8List) {
-            _dataController.add(value);
-          } else if (value is List) {
-            _dataController.add(List<int>.from(value));
-          } else {
-            // Try to convert JS TypedArray to Dart Uint8List
-            // Usually Dart handles this automatically for Uint8Array
-            try {
-              _dataController.add(value as Uint8List);
-            } catch (e) {
-              print('Error converting data: $e');
-            }
-          }
+          // value is usually a Uint8Array
+          final uint8Array = value as JSUint8Array;
+          _dataController.add(uint8Array.toDart);
         }
       }
     } catch (e) {
+      // ignore: avoid_print
       print('Error reading: $e');
       disconnect();
     } finally {
       if (_reader != null) {
         try {
-          js_util.callMethod(_reader, 'releaseLock', []);
+          _reader!.releaseLock();
         } catch (e) {
           /* ignore */
         }
@@ -192,24 +268,33 @@ class SerialServiceWeb implements SerialService {
     try {
       if (_reader != null) {
         try {
-          await js_util.promiseToFuture(
-            js_util.callMethod(_reader, 'cancel', []),
-          );
-          js_util.callMethod(_reader, 'releaseLock', []);
+          await _reader!.cancel().toDart;
+          _reader!.releaseLock();
         } catch (e) {
           // Ignore errors if already closed
         }
         _reader = null;
       }
 
+      if (_writer != null) {
+        try {
+          await _writer!.close().toDart;
+          _writer!.releaseLock();
+        } catch (e) {
+          // Ignore
+        }
+        _writer = null;
+      }
+
       if (_port != null) {
-        await js_util.promiseToFuture(js_util.callMethod(_port, 'close', []));
+        await _port!.close().toDart;
         _port = null;
       }
 
       _isConnected = false;
       _connectionController.add(false);
     } catch (e) {
+      // ignore: avoid_print
       print('Error disconnecting: $e');
     }
   }
@@ -221,23 +306,22 @@ class SerialServiceWeb implements SerialService {
     }
 
     try {
-      final writable = js_util.getProperty(_port, 'writable');
-      if (writable == null) throw Exception('Port not writable');
+      final writable = _port!.writable;
+      // if (writable == null) throw Exception('Port not writable');
 
-      final writer = js_util.callMethod(writable, 'getWriter', []);
+      final writer = writable.getWriter();
       _writer = writer;
 
-      final uint8Data = Uint8List.fromList(data);
-      final writePromise = js_util.callMethod(writer, 'write', [uint8Data]);
-      await js_util.promiseToFuture(writePromise);
+      final uint8Data = Uint8List.fromList(data).toJS;
+      await writer.write(uint8Data).toDart;
 
-      js_util.callMethod(writer, 'releaseLock', []);
+      writer.releaseLock();
       _writer = null;
     } catch (e) {
       // Release lock if failed
       if (_writer != null) {
         try {
-          js_util.callMethod(_writer, 'releaseLock', []);
+          _writer!.releaseLock();
         } catch (_) {}
         _writer = null;
       }

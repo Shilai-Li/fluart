@@ -85,20 +85,20 @@ class _MobileHomeScreenState extends State<MobileHomeScreen> {
                     vertical: 12,
                   ),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF050510).withOpacity(0.8),
+                    color: const Color(0xFF050510).withValues(alpha: 0.8),
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
-                      color: const Color(0xFF00E5FF).withOpacity(0.5),
+                      color: const Color(0xFF00E5FF).withValues(alpha: 0.5),
                       width: 1.5,
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: const Color(0xFF00E5FF).withOpacity(0.3),
+                        color: const Color(0xFF00E5FF).withValues(alpha: 0.3),
                         blurRadius: 20,
                         spreadRadius: 2,
                       ),
                       BoxShadow(
-                        color: const Color(0xFF00E5FF).withOpacity(0.1),
+                        color: const Color(0xFF00E5FF).withValues(alpha: 0.1),
                         blurRadius: 40,
                         spreadRadius: 10,
                       ),
@@ -160,15 +160,21 @@ class _MobileHomeScreenState extends State<MobileHomeScreen> {
                           margin: const EdgeInsets.only(bottom: 16),
                           padding: const EdgeInsets.all(20),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF050510).withOpacity(0.95),
+                            color: const Color(
+                              0xFF050510,
+                            ).withValues(alpha: 0.95),
                             borderRadius: BorderRadius.circular(20),
                             border: Border.all(
-                              color: const Color(0xFF00E5FF).withOpacity(0.5),
+                              color: const Color(
+                                0xFF00E5FF,
+                              ).withValues(alpha: 0.5),
                               width: 1.5,
                             ),
                             boxShadow: [
                               BoxShadow(
-                                color: const Color(0xFF00E5FF).withOpacity(0.3),
+                                color: const Color(
+                                  0xFF00E5FF,
+                                ).withValues(alpha: 0.3),
                                 blurRadius: 20,
                                 spreadRadius: 2,
                               ),
@@ -435,16 +441,19 @@ class _CircularButtonState extends State<_CircularButton> {
           height: 80,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: widget.color.withOpacity(0.1),
-            border: Border.all(color: widget.color.withOpacity(0.6), width: 2),
+            color: widget.color.withValues(alpha: 0.1),
+            border: Border.all(
+              color: widget.color.withValues(alpha: 0.6),
+              width: 2,
+            ),
             boxShadow: [
               BoxShadow(
-                color: widget.color.withOpacity(0.3),
+                color: widget.color.withValues(alpha: 0.3),
                 blurRadius: 15,
                 spreadRadius: 2,
               ),
               BoxShadow(
-                color: widget.color.withOpacity(0.1),
+                color: widget.color.withValues(alpha: 0.1),
                 blurRadius: 30,
                 spreadRadius: 10,
               ),

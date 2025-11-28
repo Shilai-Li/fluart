@@ -17,6 +17,8 @@ class _MobileHomeScreenState extends State<MobileHomeScreen> {
   final ScrollController _scrollController = ScrollController();
   bool _settingsExpanded = false;
   bool _autoScroll = true;
+  double _logFontSize = 12.0;
+  double _baseFontSize = 12.0;
   Timer? _resumeScrollTimer;
 
   @override
@@ -297,7 +299,18 @@ class _MobileHomeScreenState extends State<MobileHomeScreen> {
                     opacity: 0.05,
                     child: GestureDetector(
                       onLongPressStart: (_) => _pauseAutoScroll(),
-                      onPanStart: (_) => _pauseAutoScroll(),
+                      onScaleStart: (details) {
+                        _pauseAutoScroll();
+                        _baseFontSize = _logFontSize;
+                      },
+                      onScaleUpdate: (details) {
+                        setState(() {
+                          _logFontSize = (_baseFontSize * details.scale).clamp(
+                            8.0,
+                            40.0,
+                          );
+                        });
+                      },
                       child: ListView.builder(
                         controller: _scrollController,
                         itemCount: provider.logs.length,
@@ -306,10 +319,10 @@ class _MobileHomeScreenState extends State<MobileHomeScreen> {
                             padding: const EdgeInsets.symmetric(vertical: 2.0),
                             child: Text(
                               provider.logs[index],
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontFamily: 'Courier New',
-                                color: Color(0xFF00E5FF),
-                                fontSize: 12,
+                                color: const Color(0xFF00E5FF),
+                                fontSize: _logFontSize,
                               ),
                             ),
                           );
@@ -412,7 +425,6 @@ class _CircularButton extends StatefulWidget {
   final Color color;
 
   const _CircularButton({
-    super.key,
     required this.label,
     required this.onTap,
     required this.color,

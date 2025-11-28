@@ -1,23 +1,29 @@
-import 'dart:io' show Platform;
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart';
 import 'serial_service.dart';
-import 'serial_service_desktop.dart';
-import 'serial_service_android.dart';
+import 'serial_service_desktop.dart'
+    if (dart.library.html) 'serial_service_desktop_stub.dart';
+import 'serial_service_android.dart'
+    if (dart.library.html) 'serial_service_android_stub.dart';
+import 'serial_service_web_stub.dart'
+    if (dart.library.html) 'serial_service_web.dart';
 
 class SerialServiceFactory {
   static SerialService create() {
     if (kIsWeb) {
-      throw UnsupportedError('Serial ports are not supported on web');
+      return SerialServiceWeb();
     }
 
-    if (Platform.isAndroid) {
-      return SerialServiceAndroid();
-    } else if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
-      return SerialServiceDesktop();
-    } else {
-      throw UnsupportedError(
-        'Platform ${Platform.operatingSystem} is not supported',
-      );
+    switch (defaultTargetPlatform) {
+      case TargetPlatform.android:
+        return SerialServiceAndroid();
+      case TargetPlatform.windows:
+      case TargetPlatform.linux:
+      case TargetPlatform.macOS:
+        return SerialServiceDesktop();
+      default:
+        throw UnsupportedError(
+          'Platform $defaultTargetPlatform is not supported',
+        );
     }
   }
 }

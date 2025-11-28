@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -216,32 +217,79 @@ class _MobileHomeScreenState extends State<MobileHomeScreen> {
                               const SizedBox(height: 16),
                               _SettingRow(
                                 label: 'Port',
-                                child: DropdownButton<String>(
-                                  value: provider.selectedPort.isEmpty
-                                      ? null
-                                      : provider.selectedPort,
-                                  hint: const Text(
-                                    'Select Port',
-                                    style: TextStyle(color: Colors.white60),
-                                  ),
-                                  dropdownColor: const Color(0xFF12122A),
-                                  style: const TextStyle(color: Colors.white),
-                                  items: provider.availablePorts
-                                      .map(
-                                        (port) => DropdownMenuItem(
-                                          value: port,
-                                          child: Text(port),
+                                child:
+                                    kIsWeb &&
+                                        (provider.availablePorts.isEmpty ||
+                                            (provider.availablePorts.length ==
+                                                    1 &&
+                                                provider.availablePorts.first ==
+                                                    'Select Port...'))
+                                    ? GestureDetector(
+                                        onTap: () {
+                                          provider.connect();
+                                        },
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 12,
+                                            vertical: 8,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFF12122A),
+                                            borderRadius: BorderRadius.circular(
+                                              8,
+                                            ),
+                                            border: Border.all(
+                                              color: Colors.white24,
+                                            ),
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: const [
+                                              Text(
+                                                'Select Port...',
+                                                style: TextStyle(
+                                                  color: Colors.white,
+                                                ),
+                                              ),
+                                              SizedBox(width: 8),
+                                              Icon(
+                                                Icons.arrow_drop_down,
+                                                color: Colors.white,
+                                              ),
+                                            ],
+                                          ),
                                         ),
                                       )
-                                      .toList(),
-                                  onChanged: provider.isConnected
-                                      ? null
-                                      : (value) {
-                                          if (value != null) {
-                                            provider.setPort(value);
-                                          }
-                                        },
-                                ),
+                                    : DropdownButton<String>(
+                                        value: provider.selectedPort.isEmpty
+                                            ? null
+                                            : provider.selectedPort,
+                                        hint: const Text(
+                                          'Select Port',
+                                          style: TextStyle(
+                                            color: Colors.white60,
+                                          ),
+                                        ),
+                                        dropdownColor: const Color(0xFF12122A),
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                        ),
+                                        items: provider.availablePorts
+                                            .map(
+                                              (port) => DropdownMenuItem(
+                                                value: port,
+                                                child: Text(port),
+                                              ),
+                                            )
+                                            .toList(),
+                                        onChanged: provider.isConnected
+                                            ? null
+                                            : (value) {
+                                                if (value != null) {
+                                                  provider.setPort(value);
+                                                }
+                                              },
+                                      ),
                               ),
                               const SizedBox(height: 12),
                               _SettingRow(

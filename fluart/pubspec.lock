@@ -299,6 +299,14 @@ packages:
       url: "https://pub.flutter-io.cn"
     source: hosted
     version: "6.1.5+1"
+  serial:
+    dependency: "direct main"
+    description:
+      name: serial
+      sha256: "264e85ac2af4cdb3b16879992429ba8fb47b4ded1a06b8249b6f4357df855e2b"
+      url: "https://pub.flutter-io.cn"
+    source: hosted
+    version: "0.0.7+1"
   sky_engine:
     dependency: transitive
     description: flutter
